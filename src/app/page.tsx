@@ -1,4 +1,4 @@
-import ResearchPaperFilter from "../components/research-paper-filter"
+import ResearchPaperFilter from "../components/research-paper-filter.tsx"
 
 export default function Home() {
   return (
