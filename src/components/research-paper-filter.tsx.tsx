@@ -8,13 +8,21 @@ import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+type Paper = {
+  id: string
+  title: string
+  author: string
+  date: string
+  keywords: string[]
+}
+
 export default function ResearchPaperFilter() {
   const [fullName, setFullName] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [keyword, setKeyword] = useState("")
   const [keywords, setKeywords] = useState<string[]>([])
-  const [papers, setPapers] = useState<any[]>([]) // This would be populated from the server
+  const [papers] = useState<Paper[]>([]) // This would be populated from the server
 
   const handleAddKeyword = () => {
     if (keyword && !keywords.includes(keyword)) {
@@ -104,7 +112,7 @@ export default function ResearchPaperFilter() {
               </TableCell>
             </TableRow>
           ) : (
-            papers.map((paper) => (
+            papers.map((paper: Paper) => (
               <TableRow key={paper.id}>
                 <TableCell>{paper.title}</TableCell>
                 <TableCell>{paper.author}</TableCell>
