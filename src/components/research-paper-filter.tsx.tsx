@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { X } from 'lucide-react'
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 type Paper = {
@@ -46,15 +46,15 @@ export default function ResearchPaperFilter() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Research Paper Filter</h1>
+      <h1 className="text-2xl font-bold mb-4">UMass IALS Core Facility Publication Searcher</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <Label htmlFor="fullName">Full Name</Label>
+          <Label htmlFor="fullName">Last Name</Label>
           <Input
             id="fullName"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Enter researcher's full name"
+            placeholder="Enter researcher's last name"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -126,4 +126,3 @@ export default function ResearchPaperFilter() {
     </div>
   )
 }
-
