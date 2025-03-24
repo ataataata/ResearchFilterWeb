@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { X } from 'lucide-react'
+import { X } from "lucide-react"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 type Paper = {
@@ -13,6 +13,7 @@ type Paper = {
   title: string
   author: string
   date: string
+  doi: string        // New field for DOI link
   keywords: string[]
 }
 
@@ -22,7 +23,9 @@ export default function ResearchPaperFilter() {
   const [endDate, setEndDate] = useState("")
   const [keyword, setKeyword] = useState("")
   const [keywords, setKeywords] = useState<string[]>([])
-  const [papers] = useState<Paper[]>([]) // This would be populated from the server
+  const [papers, setPapers] = useState<Paper[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAddKeyword = () => {
     if (keyword && !keywords.includes(keyword)) {
@@ -37,11 +40,58 @@ export default function ResearchPaperFilter() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would typically make an API call to your server
-    // For demonstration, we'll just log the form data
-    console.log({ fullName, startDate, endDate, keywords })
-    // In a real application, you'd fetch the filtered papers from the server and update the state
-    // setPapers(await fetchPapers(fullName, startDate, endDate, keywords))
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const queryParams = new URLSearchParams({
+        fullName,
+        startDate,
+        endDate,
+        keywords: keywords.join(","),
+      })
+
+      const apiUrl = `https://web-production-06c8c.up.railway.app/api/papers?${queryParams.toString()}`
+      console.log("Fetching from:", apiUrl)
+
+      const res = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error("API Error Response:", errorText)
+        throw new Error(`API request failed with status ${res.status}. Error: ${errorText}`)
+      }
+
+      const data = await res.json()
+      console.log("Received data:", data)
+
+      // Map the API response to our Paper type including DOI
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formattedPapers: Paper[] = data.map((paper: any) => ({
+        id: paper.id || String(Math.random()),
+        title: paper.title || "Unknown Title",
+        author: paper.names || paper.author || "Unknown Author",
+        date: paper.publication_date || paper.date || "Unknown Date",
+        doi: paper.doi || "No DOI",   // Get the DOI from the API
+        keywords: paper.keywords
+          ? typeof paper.keywords === "string"
+            ? paper.keywords.split(",").map((k: string) => k.trim())
+            : paper.keywords
+          : [],
+      }))
+
+      setPapers(formattedPapers)
+    } catch (err) {
+      console.error("Error fetching papers:", err)
+      setError(err instanceof Error ? err.message : "An unknown error occurred")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -75,6 +125,12 @@ export default function ResearchPaperFilter() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="Enter a keyword"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleAddKeyword()
+                }
+              }}
             />
             <Button type="button" onClick={handleAddKeyword}>
               Add
@@ -84,15 +140,19 @@ export default function ResearchPaperFilter() {
             {keywords.map((kw) => (
               <Badge key={kw} variant="secondary">
                 {kw}
-                <button onClick={() => handleRemoveKeyword(kw)} className="ml-1">
+                <button type="button" onClick={() => handleRemoveKeyword(kw)} className="ml-1">
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             ))}
           </div>
         </div>
-        <Button type="submit">Search Papers</Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? "Searching..." : "Search Papers"}
+        </Button>
       </form>
+
+      {error && <div className="mt-4 p-4 bg-red-100 text-red-800 rounded-md">Error: {error}</div>}
 
       <Table className="mt-8">
         <TableCaption>List of filtered research papers</TableCaption>
@@ -101,14 +161,15 @@ export default function ResearchPaperFilter() {
             <TableHead>Title</TableHead>
             <TableHead>Author</TableHead>
             <TableHead>Date</TableHead>
+            <TableHead>DOI</TableHead> {/* New column for DOI */}
             <TableHead>Keywords</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {papers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-center">
-                No papers found
+              <TableCell colSpan={5} className="text-center">
+                {isLoading ? "Loading..." : "No papers found"}
               </TableCell>
             </TableRow>
           ) : (
@@ -117,7 +178,20 @@ export default function ResearchPaperFilter() {
                 <TableCell>{paper.title}</TableCell>
                 <TableCell>{paper.author}</TableCell>
                 <TableCell>{paper.date}</TableCell>
-                <TableCell>{paper.keywords.join(", ")}</TableCell>
+                <TableCell>
+                  {paper.doi !== "No DOI" ? (
+                    <a
+                      href={paper.doi.startsWith("http") ? paper.doi : `https://${paper.doi}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {paper.doi}
+                    </a>
+                  ) : (
+                    "No DOI"
+                  )}
+                </TableCell>
+                <TableCell>{Array.isArray(paper.keywords) ? paper.keywords.join(", ") : paper.keywords}</TableCell>
               </TableRow>
             ))
           )}
