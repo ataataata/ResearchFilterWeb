@@ -34,6 +34,7 @@ export default function ResearchPaperFilter() {
   const [keyword, setKeyword] = useState("")
   const [keywords, setKeywords] = useState<string[]>([])
   const [papers, setPapers] = useState<Paper[]>([])
+  const [selectedPaperIds, setSelectedPaperIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [csvFile, setCsvFile] = useState<File | null>(null)
@@ -69,6 +70,7 @@ export default function ResearchPaperFilter() {
     setKeywords([])
     setCsvFile(null)
     setPapers([])
+    setSelectedPaperIds([])
     setError(null)
   }
 
@@ -118,6 +120,7 @@ export default function ResearchPaperFilter() {
             : [],
       }))
       setPapers(formatted)
+      setSelectedPaperIds([])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error")
     } finally {
@@ -125,14 +128,41 @@ export default function ResearchPaperFilter() {
     }
   }
 
+  const handleSelectPaper = (paperId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPaperIds((prev) => [...prev, paperId])
+    } else {
+      setSelectedPaperIds((prev) => prev.filter((id) => id !== paperId))
+    }
+  }
+
+  const handleSelectAll = () => {
+    if (selectedPaperIds.length === papers.length) {
+      // Deselect all if everything is already selected
+      setSelectedPaperIds([])
+    } else {
+      setSelectedPaperIds(papers.map((paper) => paper.id))
+    }
+  }
+
   const handleDownload = () => {
-    if (papers.length === 0) return
+    let papersToDownload = papers
+    if (selectedPaperIds.length > 0) {
+      papersToDownload = papers.filter((paper) => selectedPaperIds.includes(paper.id))
+    }
+    if (papersToDownload.length === 0) return
     const header = ["Title", "Authors", "Date", "DOI", "Keywords"]
-    const rows = papers.map((p) => [p.title, p.authors, p.date, p.doi, p.keywords.join(", ")])
-    const csv = [header, ...rows]
+    const rows = papersToDownload.map((p) => [
+      p.title,
+      p.authors,
+      p.date,
+      p.doi,
+      p.keywords.join(", ")
+    ])
+    const csvContent = [header, ...rows]
       .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
       .join("\n")
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     link.href = URL.createObjectURL(blob)
     link.download = "filtered_papers.csv"
@@ -254,6 +284,9 @@ export default function ResearchPaperFilter() {
             <Button type="button" onClick={handleDownload} disabled={papers.length === 0}>
               Download Results as CSV
             </Button>
+            <Button type="button" onClick={handleSelectAll} disabled={papers.length === 0}>
+              {selectedPaperIds.length === papers.length ? "Clear All" : "Select All"}
+            </Button>
           </div>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? "Searching..." : "Search Papers"}
@@ -281,6 +314,8 @@ export default function ResearchPaperFilter() {
         <TableCaption>List of filtered research papers</TableCaption>
         <TableHeader>
           <TableRow>
+            {/* Selection Column Header */}
+            <TableHead className="w-8"></TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Authors</TableHead>
             <TableHead>Date</TableHead>
@@ -291,13 +326,21 @@ export default function ResearchPaperFilter() {
         <TableBody>
           {papers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center">
+              <TableCell colSpan={6} className="text-center">
                 {isLoading ? "Loading..." : "No papers found"}
               </TableCell>
             </TableRow>
           ) : (
             papers.map((paper) => (
               <TableRow key={paper.id}>
+                {/* Selection Checkbox */}
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    checked={selectedPaperIds.includes(paper.id)}
+                    onChange={(e) => handleSelectPaper(paper.id, e.target.checked)}
+                  />
+                </TableCell>
                 <TableCell>{paper.title}</TableCell>
                 <TableCell>
                   <ExpandableAuthors authors={paper.authors} threshold={3} />
