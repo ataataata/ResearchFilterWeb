@@ -26,6 +26,9 @@ interface Paper {
   keywords: string[]
 }
 
+const API = "http://127.0.0.1:8000"
+
+
 export default function ResearchPaperFilter() {
   const [lastNameInput, setLastNameInput] = useState("")
   const [lastNames, setLastNames] = useState<string[]>([])
@@ -89,7 +92,7 @@ export default function ResearchPaperFilter() {
         formData.append("keywords", keywords.join(","))
         formData.append("lastNames", lastNames.join(","))
         
-        const res = await fetch("https://web-production-06c8c.up.railway.app/api/search-csv", {
+        const res = await fetch(`${API}/api/search-csv`, {
           method: "POST",
           body: formData,
         })
@@ -102,8 +105,8 @@ export default function ResearchPaperFilter() {
           endDate,
           keywords: keywords.join(","),
         })
-        const apiUrl = `https://web-production-06c8c.up.railway.app/api/papers?${queryParams.toString()}`
-        const res = await fetch(apiUrl)
+        const res = await fetch(`${API}/api/papers?${queryParams.toString()}`)
+
         if (!res.ok) throw new Error(await res.text())
         data = await res.json()
       }
