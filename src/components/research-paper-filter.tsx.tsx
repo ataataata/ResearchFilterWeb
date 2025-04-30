@@ -17,17 +17,21 @@ import {
 } from "@/components/ui/table"
 import { ExpandableAuthors } from "./ExpandableAuthors"
 
+
 interface Paper {
   id: string
+  names: string
   title: string
+  journal: string
+  year: string | number
+  doi: string
+
   authors: string
   date: string
-  doi: string
   keywords: string[]
 }
 
-const API = "http://127.0.0.1:8000"
-
+const API = "http://0.0.0.0:8000"
 
 export default function ResearchPaperFilter() {
   const [lastNameInput, setLastNameInput] = useState("")
@@ -36,11 +40,12 @@ export default function ResearchPaperFilter() {
   const [endDate, setEndDate] = useState("")
   const [keyword, setKeyword] = useState("")
   const [keywords, setKeywords] = useState<string[]>([])
+  const [csvFile, setCsvFile] = useState<File | null>(null)
+
   const [papers, setPapers] = useState<Paper[]>([])
   const [selectedPaperIds, setSelectedPaperIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [csvFile, setCsvFile] = useState<File | null>(null)
 
   const handleAddLastName = () => {
     if (lastNameInput && !lastNames.includes(lastNameInput)) {
@@ -49,9 +54,8 @@ export default function ResearchPaperFilter() {
     }
   }
 
-  const handleRemoveLastName = (nameToRemove: string) => {
-    setLastNames(lastNames.filter((n) => n !== nameToRemove))
-  }
+  const handleRemoveLastName = (name: string) =>
+    setLastNames(lastNames.filter((n) => n !== name))
 
   const handleAddKeyword = () => {
     if (keyword && !keywords.includes(keyword)) {
@@ -60,9 +64,8 @@ export default function ResearchPaperFilter() {
     }
   }
 
-  const handleRemoveKeyword = (keywordToRemove: string) => {
-    setKeywords(keywords.filter((k) => k !== keywordToRemove))
-  }
+  const handleRemoveKeyword = (kw: string) =>
+    setKeywords(keywords.filter((k) => k !== kw))
 
   const handleReset = () => {
     setLastNameInput("")
@@ -84,6 +87,7 @@ export default function ResearchPaperFilter() {
 
     try {
       let data
+
       if (csvFile) {
         const formData = new FormData()
         formData.append("file", csvFile)
@@ -91,37 +95,47 @@ export default function ResearchPaperFilter() {
         formData.append("endDate", endDate)
         formData.append("keywords", keywords.join(","))
         formData.append("lastNames", lastNames.join(","))
-        
-        const res = await fetch(`${API}/api/search-csv`, {
-          method: "POST",
-          body: formData,
-        })
+
+        const res = await fetch(`${API}/api/search-csv`, { method: "POST", body: formData })
         if (!res.ok) throw new Error(await res.text())
         data = await res.json()
-      } else {
-        const queryParams = new URLSearchParams({
+      }
+      else {
+        const params = new URLSearchParams({
           lastNames: lastNames.join(","),
           startDate,
           endDate,
           keywords: keywords.join(","),
         })
-        const res = await fetch(`${API}/api/papers?${queryParams.toString()}`)
-
+        const res = await fetch(`${API}/api/papers?${params}`)
         if (!res.ok) throw new Error(await res.text())
         data = await res.json()
       }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formatted: Paper[] = data.map((p: any) => ({
-        id: p.id || String(Math.random()),
-        title: p.title || "Unknown Title",
-        authors: p.authors || "Unknown Author",
-        date: p.publication_date || p.date || "Unknown Date",
-        doi: p.doi || "No DOI",
-        keywords:
-          typeof p.keywords === "string"
-            ? p.keywords.split(",").map((k: string) => k.trim())
-            : [],
-      }))
+      const formatted: Paper[] = data.map((p: any) => {
+        const names   = p.names   || p.authors || "Unknown Names"
+        const journal = p.journal || "Unknown Journal"
+        const yearVal = p.year    || p.publication_date || p.date || "Unknown Year"
+        const year    = typeof yearVal === "number" ? yearVal.toString() : yearVal
+
+        return {
+          id:    p.pmid || p.id || String(Math.random()),
+          names,
+          title: p.title || "Unknown Title",
+          journal,
+          year,
+          doi:   p.doi || "No DOI",
+
+          authors: names,
+          date:    year,
+          keywords:
+            typeof p.keywords === "string"
+              ? p.keywords.split(",").map((k: string) => k.trim())
+              : [],
+        }
+      })
+
       setPapers(formatted)
       setSelectedPaperIds([])
     } catch (err) {
@@ -131,41 +145,29 @@ export default function ResearchPaperFilter() {
     }
   }
 
-  const handleSelectPaper = (paperId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedPaperIds((prev) => [...prev, paperId])
-    } else {
-      setSelectedPaperIds((prev) => prev.filter((id) => id !== paperId))
-    }
-  }
+  const handleSelectPaper = (id: string, checked: boolean) =>
+    setSelectedPaperIds((prev) =>
+      checked ? [...prev, id] : prev.filter((pid) => pid !== id)
+    )
 
   const handleSelectAll = () => {
-    if (selectedPaperIds.length === papers.length) {
-      // Deselect all if everything is already selected
-      setSelectedPaperIds([])
-    } else {
-      setSelectedPaperIds(papers.map((paper) => paper.id))
-    }
+    setSelectedPaperIds(selectedPaperIds.length === papers.length ? [] : papers.map(p => p.id))
   }
 
   const handleDownload = () => {
-    let papersToDownload = papers
-    if (selectedPaperIds.length > 0) {
-      papersToDownload = papers.filter((paper) => selectedPaperIds.includes(paper.id))
-    }
-    if (papersToDownload.length === 0) return
-    const header = ["Title", "Authors", "Date", "DOI", "Keywords"]
-    const rows = papersToDownload.map((p) => [
-      p.title,
-      p.authors,
-      p.date,
-      p.doi,
-      p.keywords.join(", ")
-    ])
-    const csvContent = [header, ...rows]
-      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
+    const toDL =
+      selectedPaperIds.length > 0 ? papers.filter(p => selectedPaperIds.includes(p.id)) : papers
+
+    if (toDL.length === 0) return
+
+    const header = ["Names", "Paper Title", "Journal", "Year", "DOI"]
+    const rows   = toDL.map(p => [p.names, p.title, p.journal, p.year, p.doi])
+
+    const csv = [header, ...rows]
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
       .join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     link.href = URL.createObjectURL(blob)
     link.download = "filtered_papers.csv"
@@ -176,9 +178,14 @@ export default function ResearchPaperFilter() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">UMass IALS Core Facility Publication Searcher</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        UMass IALS Core Facility Publication Searcher
+      </h1>
+
+      {/* ---------------------------- FORM --------------------------- */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Last Names Input */}
+
+        {/* ------ Last names input ---------------------------------- */}
         <div>
           <Label htmlFor="lastName">Last Name(s)</Label>
           <div className="flex space-x-2">
@@ -188,18 +195,14 @@ export default function ResearchPaperFilter() {
               onChange={(e) => setLastNameInput(e.target.value)}
               placeholder="Enter last name"
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  handleAddLastName()
-                }
+                if (e.key === "Enter") { e.preventDefault(); handleAddLastName() }
               }}
             />
-            <Button type="button" onClick={handleAddLastName}>
-              Add
-            </Button>
+            <Button type="button" onClick={handleAddLastName}>Add</Button>
           </div>
+          {/* badges */}
           <div className="flex flex-wrap gap-2 mt-2">
-            {lastNames.map((name) => (
+            {lastNames.map(name => (
               <Badge key={name} variant="secondary">
                 {name}
                 <button onClick={() => handleRemoveLastName(name)} className="ml-1">
@@ -209,7 +212,7 @@ export default function ResearchPaperFilter() {
             ))}
           </div>
 
-          {/* CSV Upload Input */}
+          {/* CSV upload */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-4">
             <label className="cursor-pointer bg-gray-100 px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-200 text-sm font-medium text-gray-700">
               Upload CSV
@@ -224,7 +227,7 @@ export default function ResearchPaperFilter() {
           </div>
         </div>
 
-        {/* Date Range Inputs */}
+        {/* ------ Dates -------------------------------------------- */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="startDate">Start Date</Label>
@@ -246,7 +249,7 @@ export default function ResearchPaperFilter() {
           </div>
         </div>
 
-        {/* Keyword Input */}
+        {/* ------ Keywords ----------------------------------------- */}
         <div>
           <Label htmlFor="keyword">Keywords</Label>
           <div className="flex space-x-2">
@@ -256,18 +259,14 @@ export default function ResearchPaperFilter() {
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="Enter a keyword"
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  handleAddKeyword()
-                }
+                if (e.key === "Enter") { e.preventDefault(); handleAddKeyword() }
               }}
             />
-            <Button type="button" onClick={handleAddKeyword}>
-              Add
-            </Button>
+            <Button type="button" onClick={handleAddKeyword}>Add</Button>
           </div>
+
           <div className="flex flex-wrap gap-2 mt-2">
-            {keywords.map((kw) => (
+            {keywords.map(kw => (
               <Badge key={kw} variant="secondary">
                 {kw}
                 <button onClick={() => handleRemoveKeyword(kw)} className="ml-1">
@@ -278,12 +277,10 @@ export default function ResearchPaperFilter() {
           </div>
         </div>
 
-        {/* Control Buttons */}
+        {/* ------ Control buttons ---------------------------------- */}
         <div className="flex justify-between items-center flex-wrap gap-4">
           <div className="flex gap-2">
-            <Button type="button" onClick={handleReset} variant="secondary">
-              Reset
-            </Button>
+            <Button type="button" onClick={handleReset} variant="secondary">Reset</Button>
             <Button type="button" onClick={handleDownload} disabled={papers.length === 0}>
               Download Results as CSV
             </Button>
@@ -292,32 +289,34 @@ export default function ResearchPaperFilter() {
             </Button>
           </div>
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Searching..." : "Search Papers"}
+            {isLoading ? "Searching…" : "Search Papers"}
           </Button>
         </div>
       </form>
 
+      {/* ------ Error message -------------------------------------- */}
       {error && (
         <div className="mt-4 p-4 bg-red-100 text-red-800 rounded-md">
           Error: {error}
         </div>
       )}
-      {/* Results Count */}
+
+      {/* ------ Results count ------------------------------------- */}
       {papers.length > 0 && (
         <>
           <br />
-          <div className="h-4" /> {/* empty line spacer */}
+          <div className="h-4" />
           <div className="mb-4 text-sm text-gray-700 font-medium">
             Showing {papers.length} result{papers.length > 1 ? "s" : ""}
           </div>
         </>
       )}
 
+      {/* --------------------------- TABLE ------------------------- */}
       <Table className="mt-8">
         <TableCaption>List of filtered research papers</TableCaption>
         <TableHeader>
           <TableRow>
-            {/* Selection Column Header */}
             <TableHead className="w-8"></TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Authors</TableHead>
@@ -326,17 +325,17 @@ export default function ResearchPaperFilter() {
             <TableHead className="text-center">DOI</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {papers.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center">
-                {isLoading ? "Loading..." : "No papers found"}
+                {isLoading ? "Loading…" : "No papers found"}
               </TableCell>
             </TableRow>
           ) : (
-            papers.map((paper) => (
+            papers.map(paper => (
               <TableRow key={paper.id}>
-                {/* Selection Checkbox */}
                 <TableCell>
                   <input
                     type="checkbox"
@@ -357,9 +356,7 @@ export default function ResearchPaperFilter() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <Button variant="outline" className="text-xs px-2 py-1">
-                        Open
-                      </Button>
+                      <Button variant="outline" className="text-xs px-2 py-1">Open</Button>
                     </a>
                   ) : (
                     "No DOI"
