@@ -92,7 +92,6 @@ export default function ResearchPaperFilter() {
     return 0
   })
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleAddLastName = () => {
     if (lastNameInput && !lastNames.includes(lastNameInput)) {
       setLastNames([...lastNames, lastNameInput])
@@ -220,7 +219,6 @@ export default function ResearchPaperFilter() {
     document.body.removeChild(link)
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">
@@ -373,16 +371,16 @@ export default function ResearchPaperFilter() {
         <TableCaption>List of filtered research papers</TableCaption>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-16">
+            <TableHead className="w-12 text-center">Select</TableHead>
+            <TableHead className="w-20">
               <button
                 className="flex items-center space-x-1"
                 onClick={() => onHeaderClick("matchPercent")}
               >
-                <span>Match %</span>
+                <span>Keyword Match %</span>
                 {sortBy === "matchPercent" && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
               </button>
             </TableHead>
-            <TableHead className="w-8"></TableHead>
             <TableHead>
               <button
                 className="flex items-center space-x-1"
@@ -433,17 +431,17 @@ export default function ResearchPaperFilter() {
           ) : (
             sortedPapers.map(paper => (
               <TableRow key={paper.id}>
-                <TableCell>
-                  <Badge variant={paper.matchPercent > 75 ? "default" : "secondary"}>
-                    {paper.matchPercent.toFixed(1)}%
-                  </Badge>
-                </TableCell>
-                <TableCell>
+                <TableCell className="text-center">
                   <input
                     type="checkbox"
                     checked={selectedPaperIds.includes(paper.id)}
                     onChange={e => handleSelectPaper(paper.id, e.target.checked)}
                   />
+                </TableCell>
+                <TableCell>
+                  <Badge variant={paper.matchPercent > 75 ? "default" : "secondary"}>
+                    {paper.matchPercent.toFixed(1)}%
+                  </Badge>
                 </TableCell>
                 <TableCell>{paper.title}</TableCell>
                 <TableCell>
