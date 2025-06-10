@@ -228,7 +228,7 @@ export default function ResearchPaperFilter() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Last Names */}
         <div>
-          <Label htmlFor="lastName">Last Name(s)</Label>
+          <Label htmlFor="lastName">Last Name(s);&nbsp;this employs an <b>AND</b> function</Label>
           <div className="flex space-x-2">
             <Input
               id="lastName"
@@ -258,7 +258,7 @@ export default function ResearchPaperFilter() {
           {/* CSV Upload */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-4">
             <label className="cursor-pointer bg-gray-100 px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-200 text-sm font-medium text-gray-700">
-              Upload CSV
+              Upload CSV file containing pairs of names (i.e. trainee and advisor)
               <input
                 type="file"
                 accept=".csv"
@@ -298,7 +298,7 @@ export default function ResearchPaperFilter() {
 
         {/* Keywords */}
         <div>
-          <Label htmlFor="keyword">Keywords</Label>
+          <Label htmlFor="keyword">Keywords;&nbsp;this employs an <b>OR</b> function</Label>
           <div className="flex space-x-2">
             <Input
               id="keyword"
@@ -335,9 +335,6 @@ export default function ResearchPaperFilter() {
             <Button type="button" onClick={handleDownload} disabled={!papers.length}>
               Download CSV
             </Button>
-            <Button type="button" onClick={handleSelectAll} disabled={!papers.length}>
-              {selectedPaperIds.length === papers.length ? "Clear All" : "Select All"}
-            </Button>
           </div>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? "Searching…" : "Search Papers"}
@@ -371,7 +368,11 @@ export default function ResearchPaperFilter() {
         <TableCaption>List of filtered research papers</TableCaption>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-12 text-center">Select</TableHead>
+            <TableHead className="w-20 text-center">
+              <button type="button" onClick={handleSelectAll} className="underline font-medium">
+                {selectedPaperIds.length === papers.length ? "Clear All" : "Select All"}
+              </button>
+            </TableHead>
             <TableHead className="w-20">
               <button
                 className="flex items-center space-x-1"
